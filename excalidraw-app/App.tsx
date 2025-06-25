@@ -116,6 +116,7 @@ import {
 } from "./data/localStorage";
 
 import { loadFilesFromFirebase } from "./data/firebase";
+import { saveToFirebase } from "./utils/firebase-utils";
 import {
   LibraryIndexedDBAdapter,
   LibraryLocalStorageMigrationAdapter,
@@ -883,6 +884,30 @@ const ExcalidrawWrapper = () => {
           onCollabDialogOpen={onCollabDialogOpen}
           isCollabEnabled={!isCollabDisabled}
         />
+        <button
+          className="save-to-firebase-button"
+          onClick={() => {
+            if (excalidrawAPI) {
+              const elements = excalidrawAPI.getSceneElements();
+              const appState = excalidrawAPI.getAppState();
+              saveToFirebase(
+                { elements, appState },
+                () => {
+                  excalidrawAPI.setToast({
+                    message: "Dibujo guardado en Firebase!",
+                  });
+                },
+                (error) => {
+                  excalidrawAPI.setToast({
+                    message: `Error: ${error.message}`,
+                  });
+                }
+              );
+            }
+          }}
+        >
+          Guardar en Firebase
+        </button>
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
           <OverwriteConfirmDialog.Actions.SaveToDisk />
