@@ -43,7 +43,6 @@ import {
   DiscordIcon,
   ExcalLogo,
   usersIcon,
-  exportToPlus,
   share,
   youtubeIcon,
 } from "@excalidraw/excalidraw/components/icons";
@@ -83,8 +82,8 @@ import {
   appJotaiStore,
 } from "./app-jotai";
 import {
-  FIREBASE_STORAGE_PREFIXES,
-  isExcalidrawPlusSignedUser,
+  
+  
   STORAGE_KEYS,
   SYNC_BROWSER_TABS_TIMEOUT,
 } from "./app_constants";
@@ -96,10 +95,6 @@ import Collab, {
 import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
-import {
-  ExportToExcalidrawPlus,
-  exportToExcalidrawPlus,
-} from "./components/ExportToExcalidrawPlus";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
 
 import {
@@ -115,8 +110,7 @@ import {
   importUsernameFromLocalStorage,
 } from "./data/localStorage";
 
-import { loadFilesFromFirebase } from "./data/firebase";
-import { saveToFirebase } from "./utils/firebase-utils";
+
 import {
   LibraryIndexedDBAdapter,
   LibraryLocalStorageMigrationAdapter,
@@ -413,23 +407,7 @@ const ExcalidrawWrapper = () => {
       if (!data.scene) {
         return;
       }
-      if (collabAPI?.isCollaborating()) {
-        if (data.scene.elements) {
-          collabAPI
-            .fetchImageFilesFromFirebase({
-              elements: data.scene.elements,
-              forceFetchFiles: true,
-            })
-            .then(({ loadedFiles, erroredFiles }) => {
-              excalidrawAPI.addFiles(loadedFiles);
-              updateStaleImageStatuses({
-                excalidrawAPI,
-                erroredFiles,
-                elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
-              });
-            });
-        }
-      } else {
+      if (isInitialLoad) {
         const fileIds =
           data.scene.elements?.reduce((acc, element) => {
             if (isInitializedImageElement(element)) {
@@ -437,39 +415,23 @@ const ExcalidrawWrapper = () => {
             }
             return acc;
           }, [] as FileId[]) || [];
-
-        if (data.isExternalScene) {
-          loadFilesFromFirebase(
-            `${FIREBASE_STORAGE_PREFIXES.shareLinkFiles}/${data.id}`,
-            data.key,
-            fileIds,
-          ).then(({ loadedFiles, erroredFiles }) => {
-            excalidrawAPI.addFiles(loadedFiles);
-            updateStaleImageStatuses({
-              excalidrawAPI,
-              erroredFiles,
-              elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
-            });
-          });
-        } else if (isInitialLoad) {
-          if (fileIds.length) {
-            LocalData.fileStorage
-              .getFiles(fileIds)
-              .then(({ loadedFiles, erroredFiles }) => {
-                if (loadedFiles.length) {
-                  excalidrawAPI.addFiles(loadedFiles);
-                }
-                updateStaleImageStatuses({
-                  excalidrawAPI,
-                  erroredFiles,
-                  elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
-                });
+        if (fileIds.length) {
+          LocalData.fileStorage
+            .getFiles(fileIds)
+            .then(({ loadedFiles, erroredFiles }) => {
+              if (loadedFiles.length) {
+                excalidrawAPI.addFiles(loadedFiles);
+              }
+              updateStaleImageStatuses({
+                excalidrawAPI,
+                erroredFiles,
+                elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
               });
-          }
-          // on fresh load, clear unused files from IDB (from previous
-          // session)
-          LocalData.fileStorage.clearObsoleteFiles({ currentFileIds: fileIds });
+            });
         }
+        // on fresh load, clear unused files from IDB (from previous
+        // session)
+        LocalData.fileStorage.clearObsoleteFiles({ currentFileIds: fileIds });
       }
     };
 
@@ -762,44 +724,7 @@ const ExcalidrawWrapper = () => {
     );
   }
 
-  const ExcalidrawPlusCommand = {
-    label: "Excalidraw+",
-    category: DEFAULT_CATEGORIES.links,
-    predicate: true,
-    icon: <div style={{ width: 14 }}>{ExcalLogo}</div>,
-    keywords: ["plus", "cloud", "server"],
-    perform: () => {
-      window.open(
-        `${
-          import.meta.env.VITE_APP_PLUS_LP
-        }/plus?utm_source=excalidraw&utm_medium=app&utm_content=command_palette`,
-        "_blank",
-      );
-    },
-  };
-  const ExcalidrawPlusAppCommand = {
-    label: "Sign up",
-    category: DEFAULT_CATEGORIES.links,
-    predicate: true,
-    icon: <div style={{ width: 14 }}>{ExcalLogo}</div>,
-    keywords: [
-      "excalidraw",
-      "plus",
-      "cloud",
-      "server",
-      "signin",
-      "login",
-      "signup",
-    ],
-    perform: () => {
-      window.open(
-        `${
-          import.meta.env.VITE_APP_PLUS_APP
-        }?utm_source=excalidraw&utm_medium=app&utm_content=command_palette`,
-        "_blank",
-      );
-    },
-  };
+  
 
   return (
     <div
@@ -819,30 +744,7 @@ const ExcalidrawWrapper = () => {
             toggleTheme: true,
             export: {
               onExportToBackend,
-              renderCustomUI: excalidrawAPI
-                ? (elements, appState, files) => {
-                    return (
-                      <ExportToExcalidrawPlus
-                        elements={elements}
-                        appState={appState}
-                        files={files}
-                        name={excalidrawAPI.getName()}
-                        onError={(error) => {
-                          excalidrawAPI?.updateScene({
-                            appState: {
-                              errorMessage: error.message,
-                            },
-                          });
-                        }}
-                        onSuccess={() => {
-                          excalidrawAPI.updateScene({
-                            appState: { openDialog: null },
-                          });
-                        }}
-                      />
-                    );
-                  }
-                : undefined,
+              
             },
           },
         }}
@@ -901,61 +803,24 @@ const ExcalidrawWrapper = () => {
                   throw new Error(errorData.message || "Error al guardar el dibujo.");
                 }
               } catch (error: any) {
-                excalidrawAPI.setToast({ message: `Error: ${error.message}` });
+                excalidrawAPI.setToast({ message: `Error al guardar: ${error.message}` });
               }
             }
           }}
           onLoadFromDB={() => {
             setShowLoadDialog(true);
+            excalidrawAPI?.setToast({ message: "Cargando dibujos desde MongoDB..." });
           }}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
           isCollabEnabled={!isCollabDisabled}
         />
-        <button
-          className="save-to-firebase-button"
-          onClick={() => {
-            if (excalidrawAPI) {
-              const elements = excalidrawAPI.getSceneElements();
-              const appState = excalidrawAPI.getAppState();
-              saveToFirebase(
-                { elements, appState },
-                () => {
-                  excalidrawAPI.setToast({
-                    message: "Dibujo guardado en Firebase!",
-                  });
-                },
-                (error) => {
-                  excalidrawAPI.setToast({
-                    message: `Error: ${error.message}`,
-                  });
-                }
-              );
-            }
-          }}
-        >
-          Guardar en Firebase
-        </button>
+        
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
           <OverwriteConfirmDialog.Actions.SaveToDisk />
-          {excalidrawAPI && (
-            <OverwriteConfirmDialog.Action
-              title={t("overwriteConfirm.action.excalidrawPlus.title")}
-              actionLabel={t("overwriteConfirm.action.excalidrawPlus.button")}
-              onClick={() => {
-                exportToExcalidrawPlus(
-                  excalidrawAPI.getSceneElements(),
-                  excalidrawAPI.getAppState(),
-                  excalidrawAPI.getFiles(),
-                  excalidrawAPI.getName(),
-                );
-              }}
-            >
-              {t("overwriteConfirm.action.excalidrawPlus.description")}
-            </OverwriteConfirmDialog.Action>
-          )}
+          
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
         {excalidrawAPI && <AIComponents excalidrawAPI={excalidrawAPI} />}
@@ -1153,32 +1018,9 @@ const ExcalidrawWrapper = () => {
                 );
               },
             },
-            ...(isExcalidrawPlusSignedUser
-              ? [
-                  {
-                    ...ExcalidrawPlusAppCommand,
-                    label: "Sign in / Go to Excalidraw+",
-                  },
-                ]
-              : [ExcalidrawPlusCommand, ExcalidrawPlusAppCommand]),
+            
 
-            {
-              label: t("overwriteConfirm.action.excalidrawPlus.button"),
-              category: DEFAULT_CATEGORIES.export,
-              icon: exportToPlus,
-              predicate: true,
-              keywords: ["plus", "export", "save", "backup"],
-              perform: () => {
-                if (excalidrawAPI) {
-                  exportToExcalidrawPlus(
-                    excalidrawAPI.getSceneElements(),
-                    excalidrawAPI.getAppState(),
-                    excalidrawAPI.getFiles(),
-                    excalidrawAPI.getName(),
-                  );
-                }
-              },
-            },
+            
             {
               ...CommandPalette.defaultItems.toggleTheme,
               perform: () => {
