@@ -22,11 +22,19 @@ export const AppMainMenu: React.FC<{
   theme: Theme | "system";
   setTheme: (theme: Theme | "system") => void;
   refresh: () => void;
+  onSaveToDB: () => void;
+  onLoadFromDB: () => void;
 }> = React.memo((props) => {
   return (
     <MainMenu>
       <MainMenu.DefaultItems.LoadScene />
       <MainMenu.DefaultItems.SaveToActiveFile />
+      <MainMenu.Item onSelect={props.onSaveToDB}>
+        Guardar en DB
+      </MainMenu.Item>
+      <MainMenu.Item onSelect={props.onLoadFromDB}>
+        Cargar desde DB
+      </MainMenu.Item>
       <MainMenu.DefaultItems.Export />
       <MainMenu.DefaultItems.SaveAsImage />
       {props.isCollabEnabled && (

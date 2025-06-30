@@ -136,6 +136,8 @@ import DebugCanvas, {
 import { AIComponents } from "./components/AI";
 import { ExcalidrawPlusIframeExport } from "./ExcalidrawPlusIframeExport";
 
+import { LoadDrawingDialog } from "./components/LoadDrawingDialog";
+
 import "./index.scss";
 
 import type { CollabAPI } from "./collab/Collab";
@@ -337,6 +339,7 @@ const initializeScene = async (opts: {
 
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
   const isCollabDisabled = isRunningInIframe();
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
@@ -879,6 +882,32 @@ const ExcalidrawWrapper = () => {
           theme={appTheme}
           setTheme={(theme) => setAppTheme(theme)}
           refresh={() => forceRefresh((prev) => !prev)}
+          onSaveToDB={async () => {
+            if (excalidrawAPI) {
+              const elements = excalidrawAPI.getSceneElements();
+              const appState = excalidrawAPI.getAppState();
+              try {
+                const response = await fetch("http://localhost:5000/api/drawings", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ elements, appState, name: "My Excalidraw Drawing" }),
+                });
+                if (response.ok) {
+                  excalidrawAPI.setToast({ message: "Dibujo guardado en MongoDB!" });
+                } else {
+                  const errorData = await response.json();
+                  throw new Error(errorData.message || "Error al guardar el dibujo.");
+                }
+              } catch (error: any) {
+                excalidrawAPI.setToast({ message: `Error: ${error.message}` });
+              }
+            }
+          }}
+          onLoadFromDB={() => {
+            setShowLoadDialog(true);
+          }}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -930,6 +959,21 @@ const ExcalidrawWrapper = () => {
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
         {excalidrawAPI && <AIComponents excalidrawAPI={excalidrawAPI} />}
+
+        {showLoadDialog && (
+          <LoadDrawingDialog
+            onClose={() => setShowLoadDialog(false)}
+            onLoad={(drawing) => {
+              if (excalidrawAPI) {
+                excalidrawAPI.updateScene({
+                  elements: drawing.elements,
+                  appState: drawing.appState,
+                });
+                excalidrawAPI.setToast({ message: "Dibujo cargado exitosamente!" });
+              }
+            }}
+          />
+        )}
 
         <TTDDialogTrigger />
         {isCollaborating && isOffline && (
