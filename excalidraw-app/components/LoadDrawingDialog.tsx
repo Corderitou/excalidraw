@@ -68,12 +68,9 @@ export const LoadDrawingDialog: React.FC<LoadDrawingDialogProps> = ({
         {!loading && drawings.length > 0 && (
           <ul>
             {drawings.map((drawing) => (
-              <li key={drawing._id}>
-                <span>{drawing.name || "Dibujo sin nombre"}</span>
-                <span> ({new Date(drawing.updatedAt).toLocaleString()})</span>
-                <button onClick={() => handleLoadClick(drawing._id)}>
-                  Cargar
-                </button>
+              <li key={drawing._id} onClick={() => handleLoadClick(drawing._id)}>
+                <div className="drawing-name">{drawing.name || "Dibujo sin nombre"}</div>
+                <div className="drawing-date">{new Date(drawing.updatedAt).toLocaleString()}</div>
               </li>
             ))}
           </ul>
