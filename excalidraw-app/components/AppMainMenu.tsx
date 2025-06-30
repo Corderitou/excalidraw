@@ -24,6 +24,7 @@ export const AppMainMenu: React.FC<{
   refresh: () => void;
   onSaveToDB: () => void;
   onLoadFromDB: () => void;
+  onSaveAsToDB: () => void;
 }> = React.memo((props) => {
   return (
     <MainMenu>
@@ -31,6 +32,9 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.SaveToActiveFile />
       <MainMenu.Item onSelect={props.onSaveToDB}>
         Guardar en DB
+      </MainMenu.Item>
+      <MainMenu.Item onSelect={props.onSaveAsToDB}>
+        Guardar como en DB
       </MainMenu.Item>
       <MainMenu.Item onSelect={props.onLoadFromDB}>
         Cargar desde DB

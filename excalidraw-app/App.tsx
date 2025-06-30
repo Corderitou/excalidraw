@@ -131,6 +131,7 @@ import { AIComponents } from "./components/AI";
 import { ExcalidrawPlusIframeExport } from "./ExcalidrawPlusIframeExport";
 
 import { LoadDrawingDialog } from "./components/LoadDrawingDialog";
+import { SaveDrawingDialog } from "./components/SaveDrawingDialog";
 
 import "./index.scss";
 
@@ -334,6 +335,7 @@ const initializeScene = async (opts: {
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const isCollabDisabled = isRunningInIframe();
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
@@ -811,6 +813,9 @@ const ExcalidrawWrapper = () => {
             setShowLoadDialog(true);
             excalidrawAPI?.setToast({ message: "Cargando dibujos desde MongoDB..." });
           }}
+          onSaveAsToDB={() => {
+            setShowSaveDialog(true);
+          }}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -837,6 +842,36 @@ const ExcalidrawWrapper = () => {
                 excalidrawAPI.setToast({ message: "Dibujo cargado exitosamente!" });
               }
             }}
+          />
+        )}
+
+        {showSaveDialog && (
+          <SaveDrawingDialog
+            onClose={() => setShowSaveDialog(false)}
+            onSave={async (name) => {
+              if (excalidrawAPI) {
+                const elements = excalidrawAPI.getSceneElements();
+                const appState = excalidrawAPI.getAppState();
+                try {
+                  const response = await fetch("http://localhost:5000/api/drawings", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ elements, appState, name }),
+                  });
+                  if (response.ok) {
+                    excalidrawAPI.setToast({ message: `Dibujo '${name}' guardado en MongoDB!` });
+                  } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || "Error al guardar el dibujo.");
+                  }
+                } catch (error: any) {
+                  excalidrawAPI.setToast({ message: `Error al guardar: ${error.message}` });
+                }
+              }
+            }}
+            initialName="My Excalidraw Drawing"
           />
         )}
 

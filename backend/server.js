@@ -29,9 +29,23 @@ const Drawing = mongoose.model('Drawing', drawingSchema);
 // Routes
 app.post('/api/drawings', async (req, res) => {
   try {
-    const newDrawing = new Drawing(req.body);
-    await newDrawing.save();
-    res.status(201).json(newDrawing);
+    const { name, elements, appState } = req.body;
+
+    let drawing = await Drawing.findOne({ name });
+
+    if (drawing) {
+      // Update existing drawing
+      drawing.elements = elements;
+      drawing.appState = appState;
+      drawing.updatedAt = Date.now();
+      await drawing.save();
+      res.status(200).json(drawing);
+    } else {
+      // Create new drawing
+      const newDrawing = new Drawing({ name, elements, appState });
+      await newDrawing.save();
+      res.status(201).json(newDrawing);
+    }
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
