@@ -70,6 +70,16 @@ app.get('/api/drawings', async (req, res) => {
   }
 });
 
+app.delete('/api/drawings/:id', async (req, res) => {
+  try {
+    const drawing = await Drawing.findByIdAndDelete(req.params.id);
+    if (!drawing) return res.status(404).json({ message: 'Drawing not found' });
+    res.status(200).json({ message: 'Drawing deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -57,6 +57,24 @@ export const LoadDrawingDialog: React.FC<LoadDrawingDialogProps> = ({
     }
   };
 
+  const handleDeleteClick = async (id: string, name: string) => {
+    if (window.confirm(`¿Estás seguro de que quieres borrar el dibujo '${name}'?`)) {
+      try {
+        const response = await fetch(`http://localhost:5000/api/drawings/${id}`, {
+          method: "DELETE",
+        });
+        if (response.ok) {
+          setDrawings(drawings.filter((drawing) => drawing._id !== id));
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Error al borrar el dibujo.");
+        }
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }
+  };
+
   return (
     <Dialog onCloseRequest={onClose} className="LoadDrawingDialog" title={t("buttons.load")}>
       <div className="Dialog__content">
@@ -68,9 +86,20 @@ export const LoadDrawingDialog: React.FC<LoadDrawingDialogProps> = ({
         {!loading && drawings.length > 0 && (
           <ul>
             {drawings.map((drawing) => (
-              <li key={drawing._id} onClick={() => handleLoadClick(drawing._id)}>
-                <div className="drawing-name">{drawing.name || "Dibujo sin nombre"}</div>
-                <div className="drawing-date">{new Date(drawing.updatedAt).toLocaleString()}</div>
+              <li key={drawing._id} className="drawing-item">
+                <div onClick={() => handleLoadClick(drawing._id)}>
+                  <div className="drawing-name">{drawing.name || "Dibujo sin nombre"}</div>
+                  <div className="drawing-date">{new Date(drawing.updatedAt).toLocaleString()}</div>
+                </div>
+                <button
+                  className="danger-button"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent loading when clicking delete
+                    handleDeleteClick(drawing._id, drawing.name);
+                  }}
+                >
+                  {t("buttons.delete")}
+                </button>
               </li>
             ))}
           </ul>
